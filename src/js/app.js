@@ -1,66 +1,106 @@
+// App is an object with several functions defined
 App = {
   web3Provider: null,
   contracts: {},
+  account: '0x0',
 
+  // initialise app: initialize web3
   init: function() {
-    // Load pets.
-    $.getJSON('../pets.json', function(data) {
-      var petsRow = $('#petsRow');
-      var petTemplate = $('#petTemplate');
-
-      for (i = 0; i < data.length; i ++) {
-        petTemplate.find('.panel-title').text(data[i].name);
-        petTemplate.find('img').attr('src', data[i].picture);
-        petTemplate.find('.pet-breed').text(data[i].breed);
-        petTemplate.find('.pet-age').text(data[i].age);
-        petTemplate.find('.pet-location').text(data[i].location);
-        petTemplate.find('.btn-adopt').attr('data-id', data[i].id);
-
-        petsRow.append(petTemplate.html());
-      }
-    });
-
     return App.initWeb3();
   },
 
+  // The def of initialize web3
+      // Connects client-side application to our local blockchain
   initWeb3: function() {
-    /*
-     * Replace me...
-     */
+    if (typeof web3 !== 'undefined') {
+      // If a web3 instance is already provided by Meta Mask.
+          // MetaMask turns chrome web browser into a blockchain browser
+          // So that it connects to Ethereum network
 
+      // When we login to MetaMask, it provides us with a web3 provider
+      // We then set the app's web3 provider to our given web 3 provider
+      App.web3Provider = web3.currentProvider;
+      web3 = new Web3(web3.currentProvider);
+    } else {
+      // Specify default instance if no web3 instance provided
+      App.web3Provider = new Web3.providers.HttpProvider('http://localhost:7545');
+      web3 = new Web3(App.web3Provider);
+    }
     return App.initContract();
   },
 
+  // Once initialized web3, initialize our contract
+      // Loads up our contract into our front end application so that we can interact with it
   initContract: function() {
-    /*
-     * Replace me...
-     */
-
-    return App.bindEvents();
+    // load a Json file of our Election artifect
+        // the getJSON works for this "Election.json" file because we're using the browser sync package
+        // "bs-config.json" that comes with the truffle box
+        // which is configured to read JSON files out the build contracts directory
+    $.getJSON("Election.json", function(election) {
+      // Instantiate a new truffle contract from the artifact
+          // The truffle contract is the one that we can interact with inside the actual app
+      App.contracts.Election = TruffleContract(election);
+      // Connect provider to interact with contract
+      App.contracts.Election.setProvider(App.web3Provider);
+      return App.render();
+    });
   },
 
-  bindEvents: function() {
-    $(document).on('click', '.btn-adopt', App.handleAdopt);
-  },
+  // Once contract is initialized, we'll render out our content on the web page
+      // layout all the content on the page
+      // Display the account that we have connected with the blockchain with
+      // List out all the candidates in the election
+  render: function() {
+    var electionInstance;
+    // Keep track of the loading template and content template
+    var loader = $("#loader");
+    var content = $("#content");
 
-  markAdopted: function(adopters, account) {
-    /*
-     * Replace me...
-     */
-  },
+    loader.show();
+    content.hide();
 
-  handleAdopt: function(event) {
-    event.preventDefault();
+    // Load account data
+        // "getCoinbase" provides us with the account
+    web3.eth.getCoinbase(function(err, account) { // account injected into the function
+      if (err === null) {
+        // Account in our app set to this account
+        App.account = account;
+        // Display the account in html
+        $("#accountAddress").html("Your Account: " + account);
+      }
+    });
 
-    var petId = parseInt($(event.target).data('id'));
+    // Load contract data
+        // Get a copy of the deployed contract, assign it to electionInstance declared before
+    App.contracts.Election.deployed().then(function(instance) {
+      electionInstance = instance;
+      return electionInstance.candidatesCount();
+    }).then(function(candidatesCount) {
+      var candidatesResults = $("#candidatesResults");
+      candidatesResults.empty(); 
 
-    /*
-     * Replace me...
-     */
+      for (var i = 1; i <= candidatesCount; i++) {
+        electionInstance.candidates(i).then(function(candidate) {
+          var id = candidate[0];
+          var name = candidate[1];
+          var voteCount = candidate[2];
+
+          // Render candidate Result
+          var candidateTemplate = "<tr><th>" + id + "</th><td>" + name + "</td><td>" + voteCount + "</td></tr>"
+          candidatesResults.append(candidateTemplate);
+        });
+      }
+
+      loader.hide();
+      content.show();
+    }).catch(function(error) {
+      console.warn(error);
+    });
   }
-
 };
 
+
+// app initialised whenever the window loads
 $(function() {
   $(window).load(function() {
     App.init();

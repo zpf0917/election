@@ -69,3 +69,5 @@ contract Election {
 
 // How to model voters
 // voters are represented by an address of any account connected to the blockchain
+
+//But first lets do some testing
