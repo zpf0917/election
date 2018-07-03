@@ -51,6 +51,9 @@ contract Election {
     uint public candidatesCount; // Without this we cannot keep track the size of the mapping
                                  // Default to be 0
 
+    // store accounts that has voted
+    mapping(address => bool) public voters;
+
     function Election () public {
         addCandidate("Candidate 1");
         addCandidate("Candidate 2");
@@ -62,6 +65,23 @@ contract Election {
                                                    // This will only be called in Constructor function
         candidatesCount ++;
         candidates[candidatesCount] = Candidate(candidatesCount, _name, 0);
+    }
+
+    
+
+    function vote (uint _candidateId) public { // solidity allows us to pass in metadata on top of allowed ones
+        // require that they have not voted before
+        require(!voters[msg.sender]);
+
+        // require a valid candidate
+        require(_candidateId > 0 && _candidateId <= candidatesCount);
+
+        // Record that voter has voted
+            // msg.sender is solidity's meta data of who sends this vote    
+        voters[msg.sender] = true;
+            // Update candidate vote count
+        candidates[_candidateId].voteCount ++;
+        
     }
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
